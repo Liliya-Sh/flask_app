@@ -1,53 +1,59 @@
-version: "3.9"
 services:
   flask:
-    image: app
     build:
       dockerfile: Dockerfile
       context: .
+    container_name: flask
     ports:
       - "8000:8000"
     depends_on:
-      app-postgres:
-        condition: service_healthy
+      - app-postgres
     volumes:
-      - "~/.uploads/images/flask-yt:/app"
+      - ~/.uploads/images/flask-yt:/app/app/static/upload
     env_file:
-      - .env
+      - .env.docker
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-    restart: always
+      POSTGRES_DB: wallets_db
+      POSTGRES_USER: admin_db
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST: app-postgres
+      POSTGRES_PORT: 5432
     expose:
-      - 8000
+      - 8080
 
   app-postgres:
-    image: postgres
-    container_name: postgres:16
+    image: postgres:16
+    container_name: postgres_2
     ports:
       - "5432:5432"
     env_file:
       - .env
     volumes:
-      - "~/.pg/pg_data/flask-yt:/var/lib/postgresql/data"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready", "-U", "postgres"]
-      interval: 1s
-      timeout: 5s
-      retries: 10
-    restart: always
+      - ~/.pg/pg_data/flask-yt:/var/lib/postgresql/data
 
   test:
     build:
       context: .
       dockerfile: Dockerfile
-    command: [ "pytest", "-v", "tests/" ]
+    command: [ "pytest", "-v" ]
     volumes:
       - .:/app
+    env_file:
+      - .env.docker
     environment:
       - ENV=test
+      - DATABASE_URL=postgresql://admin_db:password@app-postgres:5432/wallets_db
     depends_on:
       - app-postgres
+
+  nginx:
+    build:
+      dockerfile: ./Dockerfile
+      context: ./nginx/
+    container_name: nginx
+    env_file:
+      - .env.docker
+    depends_on:
+      - flask
+    ports:
+      - "8080:80"

@@ -12,7 +12,7 @@ def create_app(config_class=Config):
     app.register_blueprint(wallet)
 
     db.init_app(app)
-    migrate.init_app(app)
+    migrate.init_app(app, db)
 
     with app.app_context():
         db.create_all()
